@@ -1,0 +1,288 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { TEXT_LIMIT, useConverter, useFonts } from '../../app/store';
+import { slug } from '../../core/font';
+import { OTF_DEFAULT_PEN } from '../../core/otf-defaults';
+import { INK_PRESETS, type PageFormat, type PaperKind } from '../../core/types';
+import { useT } from '../../locales/i18n';
+import { useDebounced } from '../../ui/useDebounced';
+import { useMedia } from '../../ui/useMedia';
+import { glyphPath } from '../alphabet/AlphabetPage';
+import { downloadBlob } from '../export/download';
+import { useFont } from '../fonts/useFont';
+import { PagePreview } from './PagePreview';
+import { useLayout } from './useLayout';
+
+export function ConverterPage() {
+  const t = useT();
+  const navigate = useNavigate();
+  const fonts = useFonts((s) => s.list);
+  const fontsReady = useFonts((s) => s.ready);
+  const { loaded, text, settings, seed, customColor, setText, patch, setCustomColor, regenerate } = useConverter();
+  const fontId = fonts.some((f) => f.id === settings.fontId) ? settings.fontId : fonts[0]?.id;
+  const font = useFont(fontId);
+  const mobile = useMedia('(max-width: 800px)');
+  const [tab, setTab] = useState<'text' | 'sheet'>('text');
+  const [busy, setBusy] = useState(false);
+  const [otfOpen, setOtfOpen] = useState(false);
+
+  useEffect(() => {
+    if (fontId && fontId !== settings.fontId) patch({ fontId });
+  }, [fontId, settings.fontId, patch]);
+
+  // Превью пересчитывается с задержкой 300 мс после ввода.
+  const debouncedText = useDebounced(text, 300);
+  const { result, pending } = useLayout(debouncedText, font, settings, seed);
+
+  const missing = useMemo(() => {
+    if (!result) return [];
+    return [...new Set(result.glyphs.filter((g) => !g.variant).map((g) => g.char))];
+  }, [result]);
+
+  if (!loaded || !fontsReady) return <p className="muted">{t('common.loading')}</p>;
+  if (fonts.length === 0)
+    return (
+      <section className="page narrow">
+        <h1>{t('convert.title')}</h1>
+        <p>{t('convert.noFonts')}</p>
+        <Link className="btn primary" to="/new">
+          {t('fonts.new')}
+        </Link>
+      </section>
+    );
+
+  const baseName = font ? slug(font.name) : 'handwriting';
+  const run = async (fn: () => Promise<void> | void) => {
+    setBusy(true);
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onMissing = (char: string) => font && navigate(glyphPath(font.id, char, '?return=convert'));
+
+  const textPanel = (
+    <div className="converter-text">
+      <label className="sr-only" htmlFor="conv-text">
+        {t('convert.text')}
+      </label>
+      <textarea
+        id="conv-text"
+        value={text}
+        maxLength={TEXT_LIMIT}
+        placeholder={t('convert.placeholder')}
+        onChange={(e) => setText(e.target.value)}
+      />
+      {text.length >= TEXT_LIMIT && <p className="note warn">{t('convert.limit', { count: TEXT_LIMIT })}</p>}
+
+      <div className="settings">
+        <label className="field">
+          <span>{t('convert.font')}</span>
+          <select value={fontId} onChange={(e) => patch({ fontId: e.target.value })}>
+            {fonts.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <fieldset className="field">
+          <legend>{t('convert.ink')}</legend>
+          <div className="segmented">
+            {(Object.keys(INK_PRESETS) as (keyof typeof INK_PRESETS)[]).map((k) => (
+              <label key={k} className={settings.ink.kind === 'preset' && settings.ink.value === k ? 'on' : ''}>
+                <input type="radio" name="ink" checked={settings.ink.kind === 'preset' && settings.ink.value === k} onChange={() => patch({ ink: { kind: 'preset', value: k } })} />
+                <span className="swatch" style={{ background: INK_PRESETS[k] }} />
+                {t(`convert.ink.${k}`)}
+              </label>
+            ))}
+            <label className={settings.ink.kind === 'custom' ? 'on' : ''}>
+              <input type="radio" name="ink" checked={settings.ink.kind === 'custom'} onChange={() => setCustomColor(customColor)} />
+              <input
+                type="color"
+                value={customColor}
+                aria-label={t('convert.ink.custom')}
+                onChange={(e) => setCustomColor(e.target.value)}
+              />
+              {t('convert.ink.custom')}
+            </label>
+          </div>
+        </fieldset>
+
+        <label className="field">
+          <span>
+            {t('convert.pen')} <span className="muted">{settings.penSize.toFixed(2)} {t('common.mm')}</span>
+          </span>
+          <input type="range" min={0.2} max={1.2} step={0.05} value={settings.penSize} onChange={(e) => patch({ penSize: Number(e.target.value) })} />
+        </label>
+
+        <label className="field">
+          <span>
+            {t('convert.size')} <span className="muted">{settings.textSize.toFixed(1)} {t('common.mm')}</span>
+          </span>
+          <input type="range" min={2.5} max={10} step={0.5} value={settings.textSize} onChange={(e) => patch({ textSize: Number(e.target.value) })} />
+        </label>
+
+        <fieldset className="field">
+          <legend>{t('convert.paper')}</legend>
+          <div className="segmented">
+            {(['blank', 'lined', 'grid'] as PaperKind[]).map((p) => (
+              <label key={p} className={settings.paper === p ? 'on' : ''}>
+                <input type="radio" name="paper" checked={settings.paper === p} onChange={() => patch({ paper: p })} />
+                {t(`convert.paper.${p}`)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="field">
+          <legend>{t('convert.format')}</legend>
+          <div className="segmented">
+            {(['A4', 'A5'] as PageFormat[]).map((f) => (
+              <label key={f} className={settings.pageFormat === f ? 'on' : ''}>
+                <input type="radio" name="format" checked={settings.pageFormat === f} onChange={() => patch({ pageFormat: f })} />
+                {f}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  );
+
+  const sheetPanel = (
+    <div className="converter-sheet">
+      <div className="toolbar spread">
+        <div className="row">
+          <button className="btn" onClick={regenerate}>
+            ⟳ {t('convert.regenerate')}
+          </button>
+          {result && <span className="muted small">{t('convert.pages', { count: result.pageCount })}</span>}
+          {pending && <span className="muted small">{t('common.loading')}</span>}
+        </div>
+        <div className="row wrap" role="group" aria-label={t('convert.export')}>
+          <button
+            className="btn"
+            disabled={!result || !font || busy}
+            onClick={() =>
+              void run(async () => {
+                const { exportPng } = await import('../export/png');
+                const { blob, filename } = await exportPng(result!.glyphs, result!.pageCount, font!, settings, baseName);
+                downloadBlob(blob, filename);
+              })
+            }
+          >
+            {t('convert.png')}
+          </button>
+          <button
+            className="btn"
+            disabled={!result || !font || busy}
+            onClick={() =>
+              void run(async () => {
+                const { buildPdf, pdfBlob } = await import('../export/pdf');
+                downloadBlob(pdfBlob(buildPdf(result!.glyphs, result!.pageCount, font!, settings)), `${baseName}.pdf`);
+              })
+            }
+          >
+            {t('convert.pdf')}
+          </button>
+          <button
+            className="btn"
+            disabled={!result || !font || busy}
+            onClick={() =>
+              void run(async () => {
+                const { buildPdf, printPdf } = await import('../export/pdf');
+                printPdf(buildPdf(result!.glyphs, result!.pageCount, font!, settings));
+              })
+            }
+          >
+            {t('convert.print')}
+          </button>
+          <button className="btn" disabled={!font} onClick={() => setOtfOpen(true)}>
+            {t('convert.otf')}
+          </button>
+        </div>
+      </div>
+      {busy && <p className="muted small" role="status">{t('convert.exporting')}</p>}
+      {missing.length > 0 && (
+        <p className="note warn">{t('convert.missing', { chars: missing.join(' ') })}</p>
+      )}
+      {!debouncedText.trim() && <p className="muted">{t('convert.empty')}</p>}
+      <div className="sheets">
+        {result &&
+          font &&
+          Array.from({ length: result.pageCount }, (_, p) => (
+            <PagePreview key={p} glyphs={result.glyphs} page={p} font={font} settings={settings} onMissing={onMissing} />
+          ))}
+      </div>
+      {otfOpen && font && <OtfDialog onClose={() => setOtfOpen(false)} onDownload={(pen) => void run(async () => (await import('../export/otf')).downloadOtf(font, pen))} />}
+    </div>
+  );
+
+  return (
+    <section className="page converter">
+      <h1 className="sr-only">{t('convert.title')}</h1>
+      {mobile ? (
+        <>
+          <div className="tabs" role="tablist">
+            <button role="tab" aria-selected={tab === 'text'} onClick={() => setTab('text')}>
+              {t('convert.text')}
+            </button>
+            <button role="tab" aria-selected={tab === 'sheet'} onClick={() => setTab('sheet')}>
+              {t('convert.sheet')}
+            </button>
+          </div>
+          {tab === 'text' ? textPanel : sheetPanel}
+        </>
+      ) : (
+        <div className="converter-cols">
+          {textPanel}
+          {sheetPanel}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function OtfDialog({ onClose, onDownload }: { onClose: () => void; onDownload: (pen: number) => void }) {
+  const t = useT();
+  const [pen, setPen] = useState(OTF_DEFAULT_PEN);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal card" role="dialog" aria-modal="true" aria-labelledby="otf-title" onClick={(e) => e.stopPropagation()}>
+        <h2 id="otf-title">{t('otf.title')}</h2>
+        <p className="note">{t('otf.note')}</p>
+        <label className="field">
+          <span>
+            {t('otf.pen')} <span className="muted">{pen}</span>
+          </span>
+          <input type="range" min={30} max={140} step={5} value={pen} onChange={(e) => setPen(Number(e.target.value))} autoFocus />
+        </label>
+        <p className="muted small">{t('otf.usage')}</p>
+        <div className="row end">
+          <button className="btn" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button
+            className="btn primary"
+            onClick={() => {
+              onDownload(pen);
+              onClose();
+            }}
+          >
+            {t('otf.download')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
