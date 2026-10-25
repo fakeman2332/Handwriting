@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  base: '/handwriting-generator/',
+  // Относительные пути: сборка работает из любой папки (Pages, локальный сервер). Роутинг на хешах.
+  base: './',
   plugins: [
     react(),
     VitePWA({

@@ -17,7 +17,7 @@
 
 ```sh
 npm ci
-npm run dev        # http://localhost:5173/handwriting-generator/
+npm run dev        # http://localhost:5173/
 npm test           # Vitest: ядро, хранилище, сборка OTF
 npm run typecheck
 npm run lint
@@ -47,4 +47,4 @@ src/
 
 ## Деплой
 
-GitHub Actions (`.github/workflows/deploy.yml`) на каждый push в `main` запускает проверку типов, линтер, тесты, проверку сгенерированного OTF через fontTools и публикует сборку на GitHub Pages. В настройках репозитория нужно выбрать Pages → Source: GitHub Actions. Путь сборки задан в `vite.config.ts` (`base: '/handwriting-generator/'`).
+GitHub Actions (`.github/workflows/deploy.yml`) на каждый push в `main` запускает проверку типов, линтер, тесты, проверку сгенерированного OTF через fontTools и публикует сборку на GitHub Pages. В настройках репозитория нужно выбрать Pages → Source: GitHub Actions. Сборка использует относительные пути (`base: './'`), поэтому работает из любой папки: на Pages, на своём сервере или локально, например `python3 -m http.server` в папке `dist`.
