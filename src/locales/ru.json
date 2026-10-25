@@ -111,5 +111,19 @@
   "error.notFound": "Почерк не найден",
   "error.toList": "К списку почерков",
   "common.mm": "мм",
-  "editor.nextChar": "Следующая буква"
+  "editor.nextChar": "Следующая буква",
+  "convert.align": "Ровные буквы",
+  "convert.alignHint": "Буквы выравниваются по линиям: строчные к строчным, заглавные к заглавным. Ваш рисунок не меняется.",
+  "otf.name": "Название шрифта",
+  "otf.version": "Версия",
+  "otf.versionHint": "Увеличивайте версию при каждом обновлении шрифта: так система заменит установленный шрифт новым.",
+  "otf.versionInvalid": "Версия — число, например 1.000 или 1.002",
+  "otf.versionNotNewer": "Версия не больше предыдущей ({last}). Система может не заменить уже установленный шрифт.",
+  "otf.history": "Предыдущие версии ({count})",
+  "alphabet.phraseTitle": "Прогресс на примере",
+  "alphabet.phraseProgress": "{filled} из {total} букв фразы",
+  "alphabet.phraseNext": "Нарисовать «{char}»",
+  "alphabet.phraseDone": "Все буквы фразы нарисованы",
+  "alphabet.phraseAlphabet": "Весь алфавит: {filled} из {total}",
+  "editor.alignNote": "В тексте буква встанет на линии автоматически."
 }

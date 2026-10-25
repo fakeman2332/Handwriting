@@ -146,6 +146,9 @@ a {
 .page-head h1 {
   margin: 0;
 }
+.page-head .row {
+  flex-wrap: wrap;
+}
 
 .row {
   display: flex;
@@ -408,6 +411,83 @@ input[type='radio'] {
   overflow: visible;
 }
 
+/* Прогресс на примере */
+.alphabet-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 1.5rem;
+  align-items: start;
+}
+.phrase-panel {
+  position: sticky;
+  top: 72px;
+  display: grid;
+  gap: 0.75rem;
+}
+.phrase-panel h2 {
+  margin: 0;
+}
+.phrase-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  justify-items: start;
+}
+.phrase-card > * {
+  width: 100%;
+}
+.phrase-card > .btn {
+  width: auto;
+}
+.phrase-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 550;
+}
+.phrase-sheet canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+}
+.block {
+  display: block;
+  font-weight: 400;
+}
+.ok-text {
+  color: #1a7f37;
+}
+.warn-text {
+  color: #9a6700;
+}
+.editor-note {
+  margin: 0.5rem 0 0;
+}
+.otf-history ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+.otf-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.otf-history summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.modal {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
 /* Редактор */
 .editor-head {
   display: flex;
@@ -627,7 +707,7 @@ input[type='radio'] {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  max-width: 560px;
+  max-width: min(560px, calc(100vw - 2rem));
   padding: 0.6rem 0.6rem 0.6rem 1rem;
   border-radius: 12px;
   background: #1c1c1e;
@@ -654,6 +734,16 @@ input[type='radio'] {
 }
 .modal h2 {
   margin: 0;
+}
+
+@media (max-width: 1000px) {
+  .alphabet-layout {
+    grid-template-columns: 1fr;
+  }
+  .phrase-panel {
+    position: static;
+    order: -1;
+  }
 }
 
 @media (max-width: 800px) {

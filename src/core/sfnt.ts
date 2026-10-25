@@ -10,6 +10,8 @@ export type SfntPatch = {
   ascender: number;
   descender: number;
   weightClass: number;
+  /** head.fontRevision, например 1.002. */
+  revision: number;
 };
 
 /** Таблицы, которые в шрифт не попадают (AAT, Apple-only). */
@@ -83,6 +85,7 @@ export function buildNameTable(records: NameRecord[]): Uint8Array {
 
 function patchHead(head: Uint8Array, p: SfntPatch): void {
   const dv = new DataView(head.buffer, head.byteOffset, head.byteLength);
+  dv.setInt32(4, Math.round(p.revision * 65536));
   dv.setInt16(36, Math.floor(p.bbox.xMin));
   dv.setInt16(38, Math.floor(p.bbox.yMin));
   dv.setInt16(40, Math.ceil(p.bbox.xMax));

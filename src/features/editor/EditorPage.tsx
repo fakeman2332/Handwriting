@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useFonts, usePrefs } from '../../app/store';
+import { useConverter, useFonts, usePrefs } from '../../app/store';
 import { charsOfAll } from '../../core/charsets';
 import { nextUnfilled } from '../../core/font';
 import { computeSpacing, scaleStrokes, translateStrokes } from '../../core/geometry';
@@ -50,6 +50,7 @@ function Editor({
   const saveGlyph = useFonts((s) => s.saveGlyph);
   const showSample = usePrefs((s) => s.showSample);
   const setPrefs = usePrefs((s) => s.set);
+  const align = useConverter((s) => s.settings.align);
   const glyph: Glyph = font.glyphs[char] ?? { char, variants: [] };
 
   const [target] = useState<GlyphVariant | null>(() => {
@@ -187,6 +188,7 @@ function Editor({
               <span>{t('editor.sample')}</span>
             </label>
           </div>
+          {align && <p className="muted small editor-note">{t('editor.alignNote')}</p>}
           <div className="toolbar compact" role="toolbar">
             {(
               [

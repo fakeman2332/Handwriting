@@ -31,6 +31,9 @@ export type Metrics = {
   capHeight: number;
 };
 
+/** Запись об экспорте OTF: по ней предлагается следующая версия. */
+export type OtfExport = { name: string; version: string; penSize: number; at: number };
+
 export type HandwritingFont = {
   id: string;
   name: string;
@@ -40,6 +43,7 @@ export type HandwritingFont = {
   glyphs: Record<string, Glyph>;
   createdAt: number;
   updatedAt: number;
+  exports?: OtfExport[];
 };
 
 export const INK_PRESETS = { blue: '#1F3A93', black: '#1C1C1E' } as const;
@@ -58,6 +62,8 @@ export type RenderSettings = {
   textSize: number; // высота заглавной, мм
   paper: PaperKind;
   pageFormat: PageFormat;
+  /** Ровные буквы: выравнивание по линиям при выводе. */
+  align: boolean;
 };
 
 export type PlacedGlyph = {

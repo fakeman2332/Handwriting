@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { parse } from 'opentype.js';
 import { describe, expect, it } from 'vitest';
-import { glyphName, nameRecords, otfBytes, simplify, variantPolygons } from './otf';
+import { glyphName, isValidVersion, nameRecords, nextVersion, otfBytes, simplify, variantPolygons } from './otf';
 import { checksum, readTables } from './sfnt';
 import { fakeFont, fakeVariant } from './testing';
 import { drawnVariants } from './variants';
@@ -63,5 +63,26 @@ describe('otf', () => {
     expect(n.macintosh.fontFamily!.en).toMatch(/^[\x20-\x7e]+$/);
     for (const platform of Object.values(n)) for (const v of Object.values(platform)) expect(v.en.trim()).not.toBe('');
     expect(nameRecords('Мой почерк').find((r) => r.platformID === 1 && r.nameID === 1)?.text).toBe('Moy Pocherk');
+  });
+});
+
+describe('версии и название шрифта', () => {
+  it('следующая версия', () => {
+    expect(nextVersion(undefined)).toBe('1.000');
+    expect(nextVersion('1.000')).toBe('1.001');
+    expect(nextVersion('1.999')).toBe('2.000');
+    expect(nextVersion('2')).toBe('2.001');
+    expect(isValidVersion('1.2.3')).toBe(false);
+    expect(isValidVersion('0')).toBe(false);
+  });
+
+  it('название и версия попадают в name и head', () => {
+    const bytes = otfBytes(fakeFont(['digits']), 70, { familyName: 'Конспект', version: '1.004' });
+    const back = parse(bytes);
+    const n = (back.names as unknown as { windows: Record<string, { en: string }> }).windows;
+    expect(n.fontFamily!.en).toBe('Конспект');
+    expect(n.version!.en).toBe('Version 1.004');
+    expect(n.postScriptName!.en).toBe('Konspekt-Regular');
+    expect(back.tables.head!.fontRevision).toBeCloseTo(1.004, 3);
   });
 });

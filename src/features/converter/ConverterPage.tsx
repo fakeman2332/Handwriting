@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TEXT_LIMIT, useConverter, useFonts } from '../../app/store';
 import { slug } from '../../core/font';
-import { OTF_DEFAULT_PEN } from '../../core/otf-defaults';
+import { prepareFont } from '../../core/align';
+import { FAMILY_NAME_MAX, formatVersion, isValidVersion, nextVersion, OTF_DEFAULT_PEN } from '../../core/otf-defaults';
+import type { HandwritingFont } from '../../core/types';
 import { INK_PRESETS, type PageFormat, type PaperKind } from '../../core/types';
 import { useT } from '../../locales/i18n';
 import { useDebounced } from '../../ui/useDebounced';
@@ -21,6 +23,9 @@ export function ConverterPage() {
   const { loaded, text, settings, seed, customColor, setText, patch, setCustomColor, regenerate } = useConverter();
   const fontId = fonts.some((f) => f.id === settings.fontId) ? settings.fontId : fonts[0]?.id;
   const font = useFont(fontId);
+  const updateMeta = useFonts((s) => s.updateMeta);
+  // Шрифт для вывода: с выравниванием букв, если оно включено. Хранилище не меняется.
+  const renderFont = useMemo(() => (font ? prepareFont(font, settings.align) : font), [font, settings.align]);
   const mobile = useMedia('(max-width: 800px)');
   const [tab, setTab] = useState<'text' | 'sheet'>('text');
   const [busy, setBusy] = useState(false);
@@ -32,7 +37,7 @@ export function ConverterPage() {
 
   // Превью пересчитывается с задержкой 300 мс после ввода.
   const debouncedText = useDebounced(text, 300);
-  const { result, pending } = useLayout(debouncedText, font, settings, seed);
+  const { result, pending } = useLayout(debouncedText, renderFont, settings, seed);
 
   const missing = useMemo(() => {
     if (!result) return [];
@@ -150,6 +155,14 @@ export function ConverterPage() {
             ))}
           </div>
         </fieldset>
+
+        <label className="check">
+          <input type="checkbox" checked={settings.align} onChange={(e) => patch({ align: e.target.checked })} />
+          <span>
+            {t('convert.align')}
+            <span className="muted small block">{t('convert.alignHint')}</span>
+          </span>
+        </label>
       </div>
     </div>
   );
@@ -171,7 +184,7 @@ export function ConverterPage() {
             onClick={() =>
               void run(async () => {
                 const { exportPng } = await import('../export/png');
-                const { blob, filename } = await exportPng(result!.glyphs, result!.pageCount, font!, settings, baseName);
+                const { blob, filename } = await exportPng(result!.glyphs, result!.pageCount, renderFont!, settings, baseName);
                 downloadBlob(blob, filename);
               })
             }
@@ -184,7 +197,7 @@ export function ConverterPage() {
             onClick={() =>
               void run(async () => {
                 const { buildPdf, pdfBlob } = await import('../export/pdf');
-                downloadBlob(pdfBlob(buildPdf(result!.glyphs, result!.pageCount, font!, settings)), `${baseName}.pdf`);
+                downloadBlob(pdfBlob(buildPdf(result!.glyphs, result!.pageCount, renderFont!, settings)), `${baseName}.pdf`);
               })
             }
           >
@@ -196,7 +209,7 @@ export function ConverterPage() {
             onClick={() =>
               void run(async () => {
                 const { buildPdf, printPdf } = await import('../export/pdf');
-                printPdf(buildPdf(result!.glyphs, result!.pageCount, font!, settings));
+                printPdf(buildPdf(result!.glyphs, result!.pageCount, renderFont!, settings));
               })
             }
           >
@@ -216,10 +229,22 @@ export function ConverterPage() {
         {result &&
           font &&
           Array.from({ length: result.pageCount }, (_, p) => (
-            <PagePreview key={p} glyphs={result.glyphs} page={p} font={font} settings={settings} onMissing={onMissing} />
+            <PagePreview key={p} glyphs={result.glyphs} page={p} font={renderFont!} settings={settings} onMissing={onMissing} />
           ))}
       </div>
-      {otfOpen && font && <OtfDialog onClose={() => setOtfOpen(false)} onDownload={(pen) => void run(async () => (await import('../export/otf')).downloadOtf(font, pen))} />}
+      {otfOpen && font && (
+        <OtfDialog
+          font={font}
+          onClose={() => setOtfOpen(false)}
+          onDownload={(pen, name, version) =>
+            void run(async () => {
+              (await import('../export/otf')).downloadOtf(prepareFont(font, settings.align), pen, name, version);
+              const entry = { name, version, penSize: pen, at: Date.now() };
+              await updateMeta({ exports: [...(font.exports ?? []), entry] });
+            })
+          }
+        />
+      )}
     </div>
   );
 
@@ -248,41 +273,103 @@ export function ConverterPage() {
   );
 }
 
-function OtfDialog({ onClose, onDownload }: { onClose: () => void; onDownload: (pen: number) => void }) {
+function OtfDialog({
+  font,
+  onClose,
+  onDownload,
+}: {
+  font: HandwritingFont;
+  onClose: () => void;
+  onDownload: (pen: number, name: string, version: string) => void;
+}) {
   const t = useT();
-  const [pen, setPen] = useState(OTF_DEFAULT_PEN);
+  const history = font.exports ?? [];
+  const last = history[history.length - 1];
+  const [name, setName] = useState(() => (last?.name ?? font.name).slice(0, FAMILY_NAME_MAX));
+  const [version, setVersion] = useState(() => nextVersion(last?.version));
+  const [pen, setPen] = useState(last?.penSize ?? OTF_DEFAULT_PEN);
+  const validVersion = isValidVersion(version);
+  const notNewer = validVersion && last !== undefined && Number(version) <= Number(last.version) && name.trim() === last.name;
+  const valid = name.trim().length > 0 && validVersion;
+  const fmtDate = (ms: number) => new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal card" role="dialog" aria-modal="true" aria-labelledby="otf-title" onClick={(e) => e.stopPropagation()}>
+      <form
+        className="modal card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="otf-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid) return;
+          onDownload(pen, name.trim(), formatVersion(version));
+          onClose();
+        }}
+      >
         <h2 id="otf-title">{t('otf.title')}</h2>
         <p className="note">{t('otf.note')}</p>
         <label className="field">
           <span>
+            {t('otf.name')}{' '}
+            <span className="muted">
+              {name.length}/{FAMILY_NAME_MAX}
+            </span>
+          </span>
+          <input type="text" value={name} maxLength={FAMILY_NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus required />
+        </label>
+        <label className="field">
+          <span>{t('otf.version')}</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={version}
+            onChange={(e) => setVersion(e.target.value.replace(',', '.'))}
+            aria-invalid={!validVersion}
+            aria-describedby="otf-version-hint"
+          />
+          <span id="otf-version-hint" className={validVersion && !notNewer ? 'muted small' : 'small warn-text'}>
+            {!validVersion ? t('otf.versionInvalid') : notNewer ? t('otf.versionNotNewer', { last: last!.version }) : t('otf.versionHint')}
+          </span>
+        </label>
+        <label className="field">
+          <span>
             {t('otf.pen')} <span className="muted">{pen}</span>
           </span>
-          <input type="range" min={30} max={140} step={5} value={pen} onChange={(e) => setPen(Number(e.target.value))} autoFocus />
+          <input type="range" min={30} max={140} step={5} value={pen} onChange={(e) => setPen(Number(e.target.value))} />
         </label>
+        {history.length > 0 && (
+          <details className="otf-history">
+            <summary>{t('otf.history', { count: history.length })}</summary>
+            <ul>
+              {[...history].reverse().slice(0, 10).map((h) => (
+                <li key={h.at}>
+                  <span>
+                    {h.name} {h.version}
+                  </span>
+                  <span className="muted">{fmtDate(h.at)}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         <p className="muted small">{t('otf.usage')}</p>
         <div className="row end">
-          <button className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button
-            className="btn primary"
-            onClick={() => {
-              onDownload(pen);
-              onClose();
-            }}
-          >
+          <button type="submit" className="btn primary" disabled={!valid}>
             {t('otf.download')}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

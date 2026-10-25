@@ -111,5 +111,19 @@
   "error.notFound": "Handwriting not found",
   "error.toList": "Back to handwritings",
   "common.mm": "mm",
-  "editor.nextChar": "Next glyph"
+  "editor.nextChar": "Next glyph",
+  "convert.align": "Even letters",
+  "convert.alignHint": "Letters snap to the guide lines: lowercase to lowercase height, capitals to capital height. Your drawing stays unchanged.",
+  "otf.name": "Font name",
+  "otf.version": "Version",
+  "otf.versionHint": "Increase the version every time you update the font, so the system replaces the installed one.",
+  "otf.versionInvalid": "The version is a number, for example 1.000 or 1.002",
+  "otf.versionNotNewer": "The version isn't higher than the previous one ({last}). The system may not replace the installed font.",
+  "otf.history": "Previous versions ({count})",
+  "alphabet.phraseTitle": "Progress by example",
+  "alphabet.phraseProgress": "{filled} of {total} letters in the phrase",
+  "alphabet.phraseNext": "Draw “{char}”",
+  "alphabet.phraseDone": "All letters of the phrase are drawn",
+  "alphabet.phraseAlphabet": "Whole alphabet: {filled} of {total}",
+  "editor.alignNote": "In text, the letter will snap to the lines automatically."
 }

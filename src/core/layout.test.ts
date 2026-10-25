@@ -12,6 +12,7 @@ const settings: RenderSettings = {
   textSize: 5,
   paper: 'lined',
   pageFormat: 'A4',
+  align: false,
 };
 const font = hydrateFont(fakeFont());
 const LOREM = 'Съешь же ещё этих мягких французских булок, да выпей чаю. The quick brown fox jumps over the lazy dog 0123456789.';

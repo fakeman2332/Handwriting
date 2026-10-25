@@ -17,6 +17,8 @@ You don't have to finish the whole alphabet first: the converter works from the 
 
 ## Features
 
+- **Even letters.** Letters drawn at different sizes or heights snap to the guide lines in your text: lowercase to lowercase height, capitals to capital height, descenders below the line. Your drawing itself stays unchanged, and you can turn this off in the converter.
+- **Progress by example.** Next to the alphabet you see "The quick brown fox jumps over the lazy dog" (or its Russian counterpart) written in your handwriting. Letters you haven't drawn yet are highlighted; click one to draw it.
 - **Natural variety.** Each drawn letter gets three automatic variations, so the same letter never looks identical twice in a row. You can delete any variation or add more of your own.
 - **Mouse, finger or stylus.** Stylus pressure and tilt are recorded, and accidental palm touches are ignored while you draw with a pen.
 - **Paper and ink.** Blank, lined or grid paper in A4 or A5. Blue, black or any ink colour you like, with adjustable pen width and text size.
@@ -32,6 +34,8 @@ You don't have to finish the whole alphabet first: the converter works from the 
 | PNG | 300 dpi images, one per page (a zip archive for several pages) |
 | PDF | A vector document that stays sharp at any zoom; also used for printing |
 | OTF | A font for Windows, macOS and Linux that works in Word, LibreOffice and graphics editors |
+
+When exporting, you choose the font name and its version. Raise the version each time you update the font, so your system replaces the installed copy; the app suggests the next version and keeps a list of previous exports.
 
 The OTF font contains the first drawn version of each letter. A system font can't reproduce the variety of the generator, so identical letters look identical. Google Docs doesn't accept custom fonts.
 

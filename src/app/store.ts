@@ -16,7 +16,7 @@ type FontsState = {
   refresh: () => Promise<void>;
   open: (id: string) => Promise<HandwritingFont | null>;
   create: (name: string, charsets: CharsetId[]) => Promise<HandwritingFont>;
-  updateMeta: (patch: Partial<Pick<HandwritingFont, 'name' | 'charsets'>>) => Promise<void>;
+  updateMeta: (patch: Partial<Pick<HandwritingFont, 'name' | 'charsets' | 'exports'>>) => Promise<void>;
   saveGlyph: (glyph: Glyph) => Promise<void>;
   remove: (id: string) => Promise<void>;
   importBackup: (text: string) => Promise<HandwritingFont>;
@@ -101,6 +101,7 @@ export const DEFAULT_RENDER: RenderSettings = {
   textSize: 4.5,
   paper: 'lined',
   pageFormat: 'A4',
+  align: true,
 };
 
 /** Около 20 страниц A4. */

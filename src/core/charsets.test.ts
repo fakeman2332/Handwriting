@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { charsOf, charsOfAll, CHARSETS } from './charsets';
+import { charsOf, charsOfAll, CHARSETS, pangramLetters } from './charsets';
 import { INTER } from './metrics';
 
 describe('charsets', () => {
@@ -15,6 +15,14 @@ describe('charsets', () => {
     expect(new Set(all).size).toBe(all.length);
     expect(all.length).toBeGreaterThan(160);
     expect(all.length).toBeLessThan(175);
+  });
+
+  it('панграммы покрывают все строчные буквы своего набора', () => {
+    const lower = (id: 'latin' | 'cyrillic') => charsOf(id).filter((c) => c === c.toLowerCase());
+    for (const id of ['latin', 'cyrillic'] as const) {
+      const letters = pangramLetters(id).map((c) => c.toLowerCase());
+      for (const c of lower(id)) expect(letters, `${id}: ${c}`).toContain(c);
+    }
   });
 
   it('все символы наборов есть в Inter', () => {

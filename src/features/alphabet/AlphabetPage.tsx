@@ -9,6 +9,7 @@ import { drawnVariants } from '../../core/variants';
 import { useT } from '../../locales/i18n';
 import { GlyphThumb } from '../../ui/GlyphThumb';
 import { IosInstallHint } from '../../ui/IosInstallHint';
+import { PhraseProgress } from './PhraseProgress';
 import { downloadBackup } from '../export/backup';
 import { CharsetPicker } from '../fonts/CreateFontPage';
 import { useFont } from '../fonts/useFont';
@@ -108,17 +109,22 @@ function Alphabet({ font }: { font: HandwritingFont }) {
         </div>
       )}
 
-      <details className="charsets-edit">
-        <summary>{t('alphabet.charsets')}</summary>
-        <CharsetPicker
-          value={font.charsets}
-          onChange={(charsets: CharsetId[]) => charsets.length > 0 && void updateMeta({ charsets })}
-        />
-      </details>
+      <div className="alphabet-layout">
+        <div className="alphabet-main">
+          <details className="charsets-edit">
+            <summary>{t('alphabet.charsets')}</summary>
+            <CharsetPicker
+              value={font.charsets}
+              onChange={(charsets: CharsetId[]) => charsets.length > 0 && void updateMeta({ charsets })}
+            />
+          </details>
 
-      {CHARSET_IDS.filter((c) => font.charsets.includes(c)).map((cs) => (
-        <CharsetGrid key={cs} font={font} charset={cs} />
-      ))}
+          {CHARSET_IDS.filter((c) => font.charsets.includes(c)).map((cs) => (
+            <CharsetGrid key={cs} font={font} charset={cs} />
+          ))}
+        </div>
+        <PhraseProgress font={font} />
+      </div>
     </section>
   );
 }

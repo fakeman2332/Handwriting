@@ -8,9 +8,9 @@ import { strokeOutline } from './stroke';
 import type { GlyphVariant, HandwritingFont } from './types';
 import { drawnVariants } from './variants';
 
-import { OTF_DEFAULT_PEN } from './otf-defaults';
+import { formatVersion, isValidVersion, nextVersion, OTF_DEFAULT_PEN } from './otf-defaults';
 
-export { OTF_DEFAULT_PEN };
+export { formatVersion, isValidVersion, nextVersion, OTF_DEFAULT_PEN };
 const SIMPLIFY_EPSILON = 2.5;
 
 /** Упрощение ломаной (Рамер–Дуглас–Пекер). */
@@ -201,11 +201,16 @@ export function buildOtf(userFont: HandwritingFont, penSize = OTF_DEFAULT_PEN): 
   return build(userFont, penSize).font;
 }
 
-export function otfBytes(userFont: HandwritingFont, penSize = OTF_DEFAULT_PEN): ArrayBuffer {
-  const { font, bbox } = build(userFont, penSize);
+export type OtfOptions = { familyName?: string; version?: string };
+
+export function otfBytes(userFont: HandwritingFont, penSize = OTF_DEFAULT_PEN, opts: OtfOptions = {}): ArrayBuffer {
+  const name = opts.familyName?.trim() || userFont.name;
+  const version = formatVersion(opts.version && isValidVersion(opts.version) ? opts.version : '1');
+  const { font, bbox } = build({ ...userFont, name }, penSize);
   const m = userFont.metrics;
   return finalizeSfnt(font.toArrayBuffer(), {
-    names: nameRecords(userFont.name),
+    revision: Number(version),
+    names: nameRecords(name, `Version ${version}`),
     bbox,
     ascender: m.ascender,
     descender: m.descender,
