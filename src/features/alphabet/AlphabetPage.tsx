@@ -26,7 +26,7 @@ export function AlphabetPage() {
     return (
       <section className="page narrow">
         <h1>{t('error.notFound')}</h1>
-        <Link to="/">{t('error.toList')}</Link>
+        <Link to="/fonts">{t('error.toList')}</Link>
       </section>
     );
   return <Alphabet font={font} />;
@@ -40,6 +40,7 @@ function Alphabet({ font }: { font: HandwritingFont }) {
   const backupAt = usePrefs((s) => s.backupAt);
   const setPrefs = usePrefs((s) => s.set);
   const [editing, setEditing] = useState(false);
+  const [setsOpen, setSetsOpen] = useState(false);
   const [name, setName] = useState(font.name);
   const next = nextUnfilled(font, null);
   const total = fontProgress(font);
@@ -57,64 +58,103 @@ function Alphabet({ font }: { font: HandwritingFont }) {
     setPrefs({ backupAt: { ...backupAt, [font.id]: Date.now() } });
   };
 
+  const sets = CHARSET_IDS.filter((c) => font.charsets.includes(c));
+  const pct = total.total ? Math.round((total.filled / total.total) * 100) : 0;
+
   return (
     <section className="page">
-      <div className="page-head">
-        {editing ? (
-          <form
-            className="row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void updateMeta({ name: name.trim() || font.name, charsets: font.charsets });
-              setEditing(false);
-            }}
-          >
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus aria-label={t('create.name')} />
-            <button className="btn small primary">{t('common.save')}</button>
-          </form>
-        ) : (
-          <h1>
-            {font.name}{' '}
-            <button className="btn ghost small" onClick={() => setEditing(true)}>
-              {t('alphabet.rename')}
-            </button>
-          </h1>
-        )}
-        <div className="row">
-          {next ? (
-            <button className="btn primary" onClick={() => navigate(glyphPath(font.id, next))}>
-              {t('alphabet.next')} «{next}»
-            </button>
+      <Link to="/fonts" className="back-link">
+        ← {t('nav.fonts')}
+      </Link>
+      <header className="font-head">
+        <div className="font-head-title">
+          {editing ? (
+            <form
+              className="row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void updateMeta({ name: name.trim() || font.name, charsets: font.charsets });
+                setEditing(false);
+              }}
+            >
+              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus aria-label={t('create.name')} />
+              <button className="btn small primary">{t('common.save')}</button>
+              <button type="button" className="btn small ghost" onClick={() => setEditing(false)}>
+                {t('common.cancel')}
+              </button>
+            </form>
           ) : (
-            <span className="muted">{t('alphabet.done')}</span>
+            <h1>
+              {font.name}{' '}
+              <button className="btn ghost small icon-text" onClick={() => setEditing(true)} aria-label={t('alphabet.rename')} title={t('alphabet.rename')}>
+                ✎
+              </button>
+            </h1>
           )}
-          <button className="btn" onClick={openConverter}>
-            {t('alphabet.convert')}
-          </button>
-          <button className="btn" onClick={backup}>
+          <div className="font-head-progress">
+            <span className="progress large" aria-hidden="true">
+              <span style={{ width: `${pct}%` }} />
+            </span>
+            <span className="muted small">{t('fonts.progress', { filled: total.filled, total: total.total })}</span>
+          </div>
+        </div>
+        <div className="font-head-actions">
+          {next ? (
+            <>
+              <button className="btn primary large" onClick={() => navigate(glyphPath(font.id, next))}>
+                {total.filled === 0 ? t('alphabet.start', { char: next }) : t('alphabet.continue', { char: next })}
+              </button>
+              <button className="btn" onClick={openConverter}>
+                {t('alphabet.convert')}
+              </button>
+            </>
+          ) : (
+            <button className="btn primary large" onClick={openConverter}>
+              {t('alphabet.convert')}
+            </button>
+          )}
+          <button className="btn ghost" onClick={backup}>
             {t('fonts.backup')}
           </button>
+          <button className="btn ghost" aria-expanded={setsOpen} onClick={() => setSetsOpen((o) => !o)}>
+            {t('alphabet.charsets')}
+          </button>
         </div>
-      </div>
+      </header>
 
-      <IosInstallHint />
+      {setsOpen && (
+        <div className="card charsets-edit">
+          <CharsetPicker
+            value={font.charsets}
+            onChange={(charsets: CharsetId[]) => charsets.length > 0 && void updateMeta({ charsets })}
+          />
+        </div>
+      )}
 
-      {showBackupHint && (
+      {/* Не больше одной подсказки за раз: резервная копия важнее. */}
+      {showBackupHint ? (
         <div className="note warn row spread" role="status">
           <span>{t('alphabet.backupHint', { filled: total.filled })}</span>
           <button className="btn primary small" onClick={backup}>
             {t('alphabet.backupNow')}
           </button>
         </div>
+      ) : (
+        <IosInstallHint />
       )}
 
-      <details className="charsets-edit">
-        <summary>{t('alphabet.charsets')}</summary>
-        <CharsetPicker
-          value={font.charsets}
-          onChange={(charsets: CharsetId[]) => charsets.length > 0 && void updateMeta({ charsets })}
-        />
-      </details>
+      {sets.length > 1 && (
+        <nav className="set-jump" aria-label={t('alphabet.charsets')}>
+          {sets.map((cs) => {
+            const p = fontProgress(font, [cs]);
+            return (
+              <button key={cs} className="chip" onClick={() => document.getElementById(`set-${cs}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                {t(`charset.${cs}`)} <span className="muted">{p.filled}/{p.total}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {CHARSET_IDS.filter((c) => font.charsets.includes(c)).map((cs) => (
         <CharsetGrid key={cs} font={font} charset={cs} />
@@ -144,7 +184,7 @@ function CharsetGrid({ font, charset }: { font: HandwritingFont; charset: Charse
   };
 
   return (
-    <section className="charset">
+    <section className="charset" id={`set-${charset}`}>
       <h2>
         {t(`charset.${charset}`)}{' '}
         <span className="muted small">{t('fonts.progress', { filled, total })}</span>

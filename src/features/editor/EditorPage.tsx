@@ -24,7 +24,7 @@ export function EditorPage() {
     return (
       <section className="page narrow">
         <h1>{t('error.notFound')}</h1>
-        <Link to="/">{t('error.toList')}</Link>
+        <Link to="/fonts">{t('error.toList')}</Link>
       </section>
     );
   const v = search.get('v');
@@ -190,7 +190,8 @@ function Editor({
             </label>
           </div>
           {align && <p className="muted small editor-note">{t('editor.alignNote')}</p>}
-          <div className="toolbar compact" role="toolbar">
+          <div className="toolbar compact" role="toolbar" aria-label={t('editor.position')}>
+            <span className="toolbar-label muted small">{t('editor.position')}</span>
             {(
               [
                 ['←', t('editor.moveLeft'), () => commit(translateStrokes(hist.present, -SHIFT, 0))],

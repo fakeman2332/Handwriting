@@ -5,6 +5,7 @@ import { ConverterPage } from '../features/converter/ConverterPage';
 import { EditorPage } from '../features/editor/EditorPage';
 import { CreateFontPage } from '../features/fonts/CreateFontPage';
 import { FontsPage } from '../features/fonts/FontsPage';
+import { LandingPage } from '../features/landing/LandingPage';
 import { Layout } from './Layout';
 import { useConverter, useFonts, usePrefs } from './store';
 
@@ -19,7 +20,8 @@ export function App() {
     <HashRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<FontsPage />} />
+          <Route index element={<LandingPage />} />
+          <Route path="fonts" element={<FontsPage />} />
           <Route path="new" element={<CreateFontPage />} />
           <Route path="font/:id" element={<AlphabetPage />} />
           <Route path="font/:id/glyph/:char" element={<EditorPage />} />

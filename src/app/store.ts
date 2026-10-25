@@ -4,10 +4,9 @@ import { parseBackup } from '../core/format';
 import { uid } from '../core/random';
 import type { CharsetId, Glyph, HandwritingFont, RenderSettings } from '../core/types';
 import { hydrateGlyph } from '../core/variants';
-import type { FontRecord } from '../storage/db';
-import { repo, requestPersistence } from '../storage/repo';
+import { repo, requestPersistence, type FontSummary } from '../storage/repo';
 
-export type FontSummary = FontRecord & { filled: number };
+export type { FontSummary };
 
 type FontsState = {
   ready: boolean;

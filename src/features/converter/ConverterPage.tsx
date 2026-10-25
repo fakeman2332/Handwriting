@@ -69,8 +69,101 @@ export function ConverterPage() {
 
   const onMissing = (char: string) => font && navigate(glyphPath(font.id, char, '?return=convert'));
 
-  const textPanel = (
-    <div className="converter-text">
+  const exportPngAction = () =>
+    void run(async () => {
+      const { exportPng } = await import('../export/png');
+      const { blob, filename } = await exportPng(result!.glyphs, result!.pageCount, renderFont!, settings, baseName);
+      downloadBlob(blob, filename);
+    });
+  const exportPdfAction = () =>
+    void run(async () => {
+      const { buildPdf, pdfBlob } = await import('../export/pdf');
+      downloadBlob(pdfBlob(buildPdf(result!.glyphs, result!.pageCount, renderFont!, settings)), `${baseName}.pdf`);
+    });
+  const printAction = () =>
+    void run(async () => {
+      const { buildPdf, printPdf } = await import('../export/pdf');
+      printPdf(buildPdf(result!.glyphs, result!.pageCount, renderFont!, settings));
+    });
+  const canExport = !!result && !!font && !busy && debouncedText.trim().length > 0;
+
+  const settingsPanel = (
+    <div className="settings">
+      <section className="settings-group">
+        <h2>{t('convert.groupFont')}</h2>
+        <label className="field">
+          <span className="sr-only">{t('convert.font')}</span>
+          <select value={fontId} onChange={(e) => patch({ fontId: e.target.value })}>
+            {fonts.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={settings.align} onChange={(e) => patch({ align: e.target.checked })} />
+          <span>
+            {t('convert.align')}
+            <span className="muted small block">{t('convert.alignHint')}</span>
+          </span>
+        </label>
+      </section>
+
+      <section className="settings-group">
+        <h2>{t('convert.ink')}</h2>
+        <div className="segmented" role="radiogroup" aria-label={t('convert.ink')}>
+          {(Object.keys(INK_PRESETS) as (keyof typeof INK_PRESETS)[]).map((k) => (
+            <label key={k} className={settings.ink.kind === 'preset' && settings.ink.value === k ? 'on' : ''}>
+              <input type="radio" name="ink" checked={settings.ink.kind === 'preset' && settings.ink.value === k} onChange={() => patch({ ink: { kind: 'preset', value: k } })} />
+              <span className="swatch" style={{ background: INK_PRESETS[k] }} />
+              {t(`convert.ink.${k}`)}
+            </label>
+          ))}
+          <label className={settings.ink.kind === 'custom' ? 'on' : ''}>
+            <input type="radio" name="ink" checked={settings.ink.kind === 'custom'} onChange={() => setCustomColor(customColor)} />
+            <input type="color" value={customColor} aria-label={t('convert.ink.custom')} onChange={(e) => setCustomColor(e.target.value)} />
+            {t('convert.ink.custom')}
+          </label>
+        </div>
+        <label className="field">
+          <span>
+            {t('convert.pen')} <span className="muted">{settings.penSize.toFixed(2)} {t('common.mm')}</span>
+          </span>
+          <input type="range" min={0.2} max={1.2} step={0.05} value={settings.penSize} onChange={(e) => patch({ penSize: Number(e.target.value) })} />
+        </label>
+      </section>
+
+      <section className="settings-group">
+        <h2>{t('convert.paper')}</h2>
+        <div className="segmented" role="radiogroup" aria-label={t('convert.paper')}>
+          {(['blank', 'lined', 'grid'] as PaperKind[]).map((p) => (
+            <label key={p} className={settings.paper === p ? 'on' : ''}>
+              <input type="radio" name="paper" checked={settings.paper === p} onChange={() => patch({ paper: p })} />
+              {t(`convert.paper.${p}`)}
+            </label>
+          ))}
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t('convert.format')}>
+          {(['A4', 'A5'] as PageFormat[]).map((f) => (
+            <label key={f} className={settings.pageFormat === f ? 'on' : ''}>
+              <input type="radio" name="format" checked={settings.pageFormat === f} onChange={() => patch({ pageFormat: f })} />
+              {f}
+            </label>
+          ))}
+        </div>
+        <label className="field">
+          <span>
+            {t('convert.size')} <span className="muted">{settings.textSize.toFixed(1)} {t('common.mm')}</span>
+          </span>
+          <input type="range" min={2.5} max={10} step={0.5} value={settings.textSize} onChange={(e) => patch({ textSize: Number(e.target.value) })} />
+        </label>
+      </section>
+    </div>
+  );
+
+  const textArea = (
+    <div className="converter-input">
       <label className="sr-only" htmlFor="conv-text">
         {t('convert.text')}
       </label>
@@ -81,157 +174,75 @@ export function ConverterPage() {
         placeholder={t('convert.placeholder')}
         onChange={(e) => setText(e.target.value)}
       />
-      {text.length >= TEXT_LIMIT && <p className="note warn">{t('convert.limit', { count: TEXT_LIMIT })}</p>}
-
-      <div className="settings">
-        <label className="field">
-          <span>{t('convert.font')}</span>
-          <select value={fontId} onChange={(e) => patch({ fontId: e.target.value })}>
-            {fonts.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <fieldset className="field">
-          <legend>{t('convert.ink')}</legend>
-          <div className="segmented">
-            {(Object.keys(INK_PRESETS) as (keyof typeof INK_PRESETS)[]).map((k) => (
-              <label key={k} className={settings.ink.kind === 'preset' && settings.ink.value === k ? 'on' : ''}>
-                <input type="radio" name="ink" checked={settings.ink.kind === 'preset' && settings.ink.value === k} onChange={() => patch({ ink: { kind: 'preset', value: k } })} />
-                <span className="swatch" style={{ background: INK_PRESETS[k] }} />
-                {t(`convert.ink.${k}`)}
-              </label>
-            ))}
-            <label className={settings.ink.kind === 'custom' ? 'on' : ''}>
-              <input type="radio" name="ink" checked={settings.ink.kind === 'custom'} onChange={() => setCustomColor(customColor)} />
-              <input
-                type="color"
-                value={customColor}
-                aria-label={t('convert.ink.custom')}
-                onChange={(e) => setCustomColor(e.target.value)}
-              />
-              {t('convert.ink.custom')}
-            </label>
-          </div>
-        </fieldset>
-
-        <label className="field">
-          <span>
-            {t('convert.pen')} <span className="muted">{settings.penSize.toFixed(2)} {t('common.mm')}</span>
-          </span>
-          <input type="range" min={0.2} max={1.2} step={0.05} value={settings.penSize} onChange={(e) => patch({ penSize: Number(e.target.value) })} />
-        </label>
-
-        <label className="field">
-          <span>
-            {t('convert.size')} <span className="muted">{settings.textSize.toFixed(1)} {t('common.mm')}</span>
-          </span>
-          <input type="range" min={2.5} max={10} step={0.5} value={settings.textSize} onChange={(e) => patch({ textSize: Number(e.target.value) })} />
-        </label>
-
-        <fieldset className="field">
-          <legend>{t('convert.paper')}</legend>
-          <div className="segmented">
-            {(['blank', 'lined', 'grid'] as PaperKind[]).map((p) => (
-              <label key={p} className={settings.paper === p ? 'on' : ''}>
-                <input type="radio" name="paper" checked={settings.paper === p} onChange={() => patch({ paper: p })} />
-                {t(`convert.paper.${p}`)}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset className="field">
-          <legend>{t('convert.format')}</legend>
-          <div className="segmented">
-            {(['A4', 'A5'] as PageFormat[]).map((f) => (
-              <label key={f} className={settings.pageFormat === f ? 'on' : ''}>
-                <input type="radio" name="format" checked={settings.pageFormat === f} onChange={() => patch({ pageFormat: f })} />
-                {f}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <label className="check">
-          <input type="checkbox" checked={settings.align} onChange={(e) => patch({ align: e.target.checked })} />
-          <span>
-            {t('convert.align')}
-            <span className="muted small block">{t('convert.alignHint')}</span>
-          </span>
-        </label>
+      <div className="row spread small muted">
+        <span>{t('convert.chars', { count: text.length })}</span>
+        {text.length >= TEXT_LIMIT && <span className="warn-text">{t('convert.limit', { count: TEXT_LIMIT })}</span>}
       </div>
+    </div>
+  );
+
+  const missingNote = missing.length > 0 && (
+    <div className="note warn missing">
+      <span>{t('convert.missingCount', { count: missing.length })}</span>
+      <span className="missing-chips">
+        {missing.slice(0, 16).map((c) => (
+          <button key={c} className="chip" onClick={() => onMissing(c)} aria-label={t('convert.drawChar', { char: c })}>
+            {c}
+          </button>
+        ))}
+        {missing.length > 16 && <span className="muted small">{t('convert.andMore', { count: missing.length - 16 })}</span>}
+      </span>
     </div>
   );
 
   const sheetPanel = (
     <div className="converter-sheet">
-      <div className="toolbar spread">
+      <div className="sheet-bar">
         <div className="row">
-          <button className="btn" onClick={regenerate}>
+          <button className="btn ghost" onClick={regenerate} title={t('convert.regenerateHint')}>
             ⟳ {t('convert.regenerate')}
           </button>
-          {result && <span className="muted small">{t('convert.pages', { count: result.pageCount })}</span>}
-          {pending && <span className="muted small">{t('common.loading')}</span>}
+          {result && debouncedText.trim() && <span className="muted small">{t('convert.pages', { count: result.pageCount })}</span>}
+          {(pending || busy) && (
+            <span className="muted small" role="status">
+              {busy ? t('convert.exporting') : t('common.loading')}
+            </span>
+          )}
         </div>
-        <div className="row wrap" role="group" aria-label={t('convert.export')}>
-          <button
-            className="btn"
-            disabled={!result || !font || busy}
-            onClick={() =>
-              void run(async () => {
-                const { exportPng } = await import('../export/png');
-                const { blob, filename } = await exportPng(result!.glyphs, result!.pageCount, renderFont!, settings, baseName);
-                downloadBlob(blob, filename);
-              })
-            }
-          >
+        <div className="row wrap export-group" role="group" aria-label={t('convert.export')}>
+          <button className="btn primary" disabled={!canExport} onClick={exportPdfAction} aria-label={t('convert.downloadPdf')}>
+            ↓ {mobile ? t('convert.pdf') : t('convert.downloadPdf')}
+          </button>
+          <button className="btn" disabled={!canExport} onClick={exportPngAction}>
             {t('convert.png')}
           </button>
-          <button
-            className="btn"
-            disabled={!result || !font || busy}
-            onClick={() =>
-              void run(async () => {
-                const { buildPdf, pdfBlob } = await import('../export/pdf');
-                downloadBlob(pdfBlob(buildPdf(result!.glyphs, result!.pageCount, renderFont!, settings)), `${baseName}.pdf`);
-              })
-            }
-          >
-            {t('convert.pdf')}
-          </button>
-          <button
-            className="btn"
-            disabled={!result || !font || busy}
-            onClick={() =>
-              void run(async () => {
-                const { buildPdf, printPdf } = await import('../export/pdf');
-                printPdf(buildPdf(result!.glyphs, result!.pageCount, renderFont!, settings));
-              })
-            }
-          >
+          <button className="btn" disabled={!canExport} onClick={printAction}>
             {t('convert.print')}
           </button>
-          <button className="btn" disabled={!font} onClick={() => setOtfOpen(true)}>
-            {t('convert.otf')}
+          <button className="btn ghost" disabled={!font} onClick={() => setOtfOpen(true)} aria-label={t('convert.otf')}>
+            {mobile ? 'OTF' : t('convert.otf')}
           </button>
         </div>
       </div>
-      {busy && <p className="muted small" role="status">{t('convert.exporting')}</p>}
-      {missing.length > 0 && (
-        <p className="note warn">{t('convert.missing', { chars: missing.join(' ') })}</p>
+      {missingNote}
+      {!debouncedText.trim() ? (
+        <div className="empty card">
+          <p className="muted">{t('convert.empty')}</p>
+          {mobile && (
+            <button className="btn" onClick={() => setTab('text')}>
+              {t('convert.toText')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="sheets">
+          {result &&
+            font &&
+            Array.from({ length: result.pageCount }, (_, p) => (
+              <PagePreview key={p} glyphs={result.glyphs} page={p} font={renderFont!} settings={settings} onMissing={onMissing} />
+            ))}
+        </div>
       )}
-      {!debouncedText.trim() && <p className="muted">{t('convert.empty')}</p>}
-      <div className="sheets">
-        {result &&
-          font &&
-          Array.from({ length: result.pageCount }, (_, p) => (
-            <PagePreview key={p} glyphs={result.glyphs} page={p} font={renderFont!} settings={settings} onMissing={onMissing} />
-          ))}
-      </div>
       {otfOpen && font && (
         <OtfDialog
           font={font}
@@ -259,13 +270,30 @@ export function ConverterPage() {
             </button>
             <button role="tab" aria-selected={tab === 'sheet'} onClick={() => setTab('sheet')}>
               {t('convert.sheet')}
+              {result && debouncedText.trim() ? ` · ${result.pageCount}` : ''}
             </button>
           </div>
-          {tab === 'text' ? textPanel : sheetPanel}
+          {tab === 'text' ? (
+            <div className="converter-text">
+              {textArea}
+              <button className="btn primary large block-btn" onClick={() => setTab('sheet')} disabled={!text.trim()}>
+                {t('convert.showSheet')} →
+              </button>
+              <details className="settings-details">
+                <summary>{t('convert.settings')}</summary>
+                {settingsPanel}
+              </details>
+            </div>
+          ) : (
+            sheetPanel
+          )}
         </>
       ) : (
         <div className="converter-cols">
-          {textPanel}
+          <div className="converter-text">
+            {textArea}
+            {settingsPanel}
+          </div>
           {sheetPanel}
         </div>
       )}

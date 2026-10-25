@@ -1,17 +1,31 @@
-import type { Glyph, HandwritingFont } from '../core/types';
+import type { Glyph, GlyphVariant, HandwritingFont } from '../core/types';
 import { dehydrateGlyph, hydrateGlyph } from '../core/variants';
 import { db as defaultDb, type FontRecord, type HwDb } from './db';
+
+export type SampleGlyph = { char: string; variant: GlyphVariant | null };
+export type FontSummary = FontRecord & { filled: number; sample: SampleGlyph[] };
+
+/** Образец для списка: название почерка его же буквами; если букв названия нет — первые нарисованные. */
+export function sampleOf(name: string, drawn: Map<string, GlyphVariant>, max = 14): SampleGlyph[] {
+  const chars = [...name].slice(0, max);
+  if (chars.some((c) => drawn.has(c))) return chars.map((char) => ({ char, variant: drawn.get(char) ?? null }));
+  return [...drawn].slice(0, 8).map(([char, variant]) => ({ char, variant }));
+}
 
 /** Доступ к шрифтам: по одной записи на глиф, чтобы автосохранение писало только изменённую букву. */
 export function createRepo(db: HwDb) {
   return {
-    async listFonts(): Promise<(FontRecord & { filled: number })[]> {
+    async listFonts(): Promise<FontSummary[]> {
       const fonts = await db.fonts.orderBy('updatedAt').reverse().toArray();
       return Promise.all(
         fonts.map(async (f) => {
           const glyphs = await db.glyphs.where('fontId').equals(f.id).toArray();
-          const filled = glyphs.filter((g) => g.variants.some((v) => v.source === 'drawn' && v.strokes.length > 0)).length;
-          return { ...f, filled };
+          const firstDrawn = new Map<string, GlyphVariant>();
+          for (const g of glyphs) {
+            const v = g.variants.find((x) => x.source === 'drawn' && x.strokes.length > 0);
+            if (v) firstDrawn.set(g.char, v);
+          }
+          return { ...f, filled: firstDrawn.size, sample: sampleOf(f.name, firstDrawn) };
         }),
       );
     },

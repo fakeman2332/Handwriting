@@ -20,7 +20,7 @@ export function IosInstallHint() {
   const set = usePrefs((s) => s.set);
   if (shown || !isIos() || isStandalone()) return null;
   return (
-    <div className="note warn row spread" role="note">
+    <div className="note warn row spread compact-note" role="note">
       <span>{t('pwa.iosHint')}</span>
       <button className="btn ghost small" aria-label={t('common.close')} onClick={() => set({ iosHintShown: true })}>
         ✕

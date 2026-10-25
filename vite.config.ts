@@ -20,6 +20,9 @@ export default defineConfig({
         short_name: 'Handwriting',
         description: 'Генератор рукописного текста вашим почерком',
         lang: 'ru',
+        // Установленное приложение открывается сразу на списке почерков, без лендинга.
+        start_url: './#/fonts',
+        scope: './',
         display: 'standalone',
         background_color: '#f6f5f2',
         theme_color: '#1f3a93',
