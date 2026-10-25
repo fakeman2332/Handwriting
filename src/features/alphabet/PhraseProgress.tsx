@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { glyphPath } from '../../app/routes';
 import { useConverter } from '../../app/store';
 import { prepareFont } from '../../core/align';
-import { pangramLetters, PANGRAMS } from '../../core/charsets';
+import { charsOf, pangramLetters, PANGRAMS } from '../../core/charsets';
 import { fontProgress } from '../../core/font';
 import { layoutPages } from '../../core/layout';
+import { interAdvance } from '../../core/metrics';
 import { PAPER_COLORS, paperGeometry } from '../../core/paper';
 import type { CharsetId, HandwritingFont, RenderSettings } from '../../core/types';
 import { isFilled } from '../../core/variants';
 import { useT } from '../../locales/i18n';
+import { useMedia } from '../../ui/useMedia';
 import { drawGlyph, type MissingHit } from '../converter/renderPage';
 
 const SAMPLE: Omit<RenderSettings, 'fontId' | 'align'> = {
@@ -21,23 +23,40 @@ const SAMPLE: Omit<RenderSettings, 'fontId' | 'align'> = {
 };
 /** Фиксированный seed: фраза не «прыгает» при каждой новой букве. */
 const SEED = 20261025;
+const CURRENT_MARK = '#1f3a93';
 
 /** Прогресс алфавита на примере фразы, написанной текущим почерком. */
-export function PhraseProgress({ font }: { font: HandwritingFont }) {
-  const t = useT();
+type Props = {
+  font: HandwritingFont;
+  /** Буква, которая сейчас рисуется: подчёркивается во фразе, по ней выбирается набор. */
+  current: string;
+  /** Параметры редактора (например, возврат в конвертер), сохраняются при переходе к другой букве. */
+  query?: string;
+};
+
+/** Фразы для текущей буквы: её набор, а для цифр и знаков — все включённые наборы букв. */
+export function phraseCharsets(font: HandwritingFont, current: string): CharsetId[] {
   const ids = (['cyrillic', 'latin'] as CharsetId[]).filter((id) => font.charsets.includes(id) && PANGRAMS[id]);
+  const own = ids.filter((id) => charsOf(id).includes(current));
+  return own.length ? own : ids;
+}
+
+/** Прогресс алфавита на примере фразы; обновляется после каждого штриха. */
+export function PhraseProgress({ font, current, query = '' }: Props) {
+  const t = useT();
+  const ids = phraseCharsets(font, current);
   if (ids.length === 0) return null;
   return (
-    <aside className="phrase-panel" aria-label={t('alphabet.phraseTitle')}>
+    <section className="phrase-panel" aria-label={t('alphabet.phraseTitle')}>
       <h2>{t('alphabet.phraseTitle')}</h2>
       {ids.map((id) => (
-        <PhraseCard key={id} font={font} charset={id} />
+        <PhraseCard key={id} font={font} charset={id} current={current} query={query} />
       ))}
-    </aside>
+    </section>
   );
 }
 
-function PhraseCard({ font, charset }: { font: HandwritingFont; charset: CharsetId }) {
+function PhraseCard({ font, charset, current, query }: { font: HandwritingFont; charset: CharsetId; current: string; query: string }) {
   const t = useT();
   const navigate = useNavigate();
   const align = useConverter((s) => s.settings.align);
@@ -49,8 +68,15 @@ function PhraseCard({ font, charset }: { font: HandwritingFont; charset: Charset
   const phrase = PANGRAMS[charset]!;
   const letters = pangramLetters(charset);
   const missing = letters.filter((c) => !isFilled(font.glyphs[c]));
+  // Следующая недостающая буква фразы, кроме той, что рисуется сейчас.
+  const next = missing.find((c) => c !== current);
   const total = fontProgress(font, [charset]);
-  const settings: RenderSettings = useMemo(() => ({ ...SAMPLE, fontId: font.id, align }), [font.id, align]);
+  // На телефоне фраза мельче: две строки под холстом вместо трёх.
+  const compact = useMedia('(max-width: 800px)');
+  const settings: RenderSettings = useMemo(
+    () => ({ ...SAMPLE, textSize: compact ? 4.5 : SAMPLE.textSize, fontId: font.id, align }),
+    [font.id, align, compact],
+  );
   const renderFont = useMemo(() => prepareFont(font, align), [font, align]);
   const layout = useMemo(() => layoutPages(phrase, renderFont, settings, SEED), [phrase, renderFont, settings]);
 
@@ -98,7 +124,14 @@ function PhraseCard({ font, charset }: { font: HandwritingFont; charset: Charset
       if (hit) found.push(hit);
     }
     hits.current = found;
-  }, [width, layout, renderFont, settings, geo.baselines, heightMm, widthMm, top, left]);
+    // Текущая буква подчёркнута везде, где встречается во фразе.
+    ctx.fillStyle = CURRENT_MARK;
+    for (const g of layout.glyphs) {
+      if (g.char !== current) continue;
+      const w = g.variant ? g.variant.advanceWidth * g.scale : interAdvance(g.char) * g.scale;
+      ctx.fillRect(g.x - left, g.y - top + geo.lineHeight * 0.12, w, 0.7);
+    }
+  }, [width, layout, renderFont, settings, geo.baselines, geo.lineHeight, heightMm, widthMm, top, left, current]);
 
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -106,7 +139,7 @@ function PhraseCard({ font, charset }: { font: HandwritingFont; charset: Charset
     const x = (e.clientX - r.left) * mm;
     const y = (e.clientY - r.top) * mm;
     const hit = hits.current.find((h) => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h);
-    if (hit) navigate(glyphPath(font.id, hit.char));
+    if (hit) navigate(glyphPath(font.id, hit.char, query));
   };
 
   const done = letters.length - missing.length;
@@ -128,14 +161,14 @@ function PhraseCard({ font, charset }: { font: HandwritingFont; charset: Charset
           aria-label={phrase}
         />
       </div>
-      {missing.length > 0 ? (
-        <button className="btn small primary" onClick={() => navigate(glyphPath(font.id, missing[0]!))}>
-          {t('alphabet.phraseNext', { char: missing[0]! })}
+      {next ? (
+        <button className="btn small primary phrase-extra" onClick={() => navigate(glyphPath(font.id, next!, query))}>
+          {t('alphabet.phraseNext', { char: next })}
         </button>
       ) : (
-        <span className="small ok-text">{t('alphabet.phraseDone')}</span>
+        <span className="small ok-text phrase-extra">{t('alphabet.phraseDone')}</span>
       )}
-      <span className="muted small">{t('alphabet.phraseAlphabet', { filled: total.filled, total: total.total })}</span>
+      <span className="muted small phrase-extra">{t('alphabet.phraseAlphabet', { filled: total.filled, total: total.total })}</span>
     </section>
   );
 }

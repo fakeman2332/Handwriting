@@ -18,7 +18,7 @@ You don't have to finish the whole alphabet first: the converter works from the 
 ## Features
 
 - **Even letters.** Letters drawn at different sizes or heights snap to the guide lines in your text: lowercase to lowercase height, capitals to capital height, descenders below the line. Your drawing itself stays unchanged, and you can turn this off in the converter.
-- **Progress by example.** Next to the alphabet you see "The quick brown fox jumps over the lazy dog" (or its Russian counterpart) written in your handwriting. Letters you haven't drawn yet are highlighted; click one to draw it.
+- **Progress by example.** While you draw, "The quick brown fox jumps over the lazy dog" (or its Russian counterpart) is shown next to the canvas in your handwriting and updates after every stroke. The current letter is underlined, letters you haven't drawn yet are highlighted, and a click on one opens it for drawing.
 - **Natural variety.** Each drawn letter gets three automatic variations, so the same letter never looks identical twice in a row. You can delete any variation or add more of your own.
 - **Mouse, finger or stylus.** Stylus pressure and tilt are recorded, and accidental palm touches are ignored while you draw with a pen.
 - **Paper and ink.** Blank, lined or grid paper in A4 or A5. Blue, black or any ink colour you like, with adjustable pen width and text size.

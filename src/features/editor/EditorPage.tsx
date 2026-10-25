@@ -11,6 +11,7 @@ import { useT } from '../../locales/i18n';
 import { GlyphThumb } from '../../ui/GlyphThumb';
 import { glyphPath } from '../../app/routes';
 import { useFont } from '../fonts/useFont';
+import { PhraseProgress } from '../alphabet/PhraseProgress';
 import { GlyphCanvas } from './GlyphCanvas';
 
 export function EditorPage() {
@@ -208,6 +209,7 @@ function Editor({
         </div>
 
         <aside className="editor-side">
+          <PhraseProgress font={font} current={char} query={query} />
           <h2>{t('editor.variants')}</h2>
           <div className="variant-strip">
             {live.variants
