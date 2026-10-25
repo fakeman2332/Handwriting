@@ -3,6 +3,7 @@ import polygonClipping, { type MultiPolygon, type Pair, type Ring } from 'polygo
 import { charsOfAll } from './charsets';
 import { slug } from './font';
 import { SPACE_WIDTH } from './metrics';
+import { finalizeSfnt, type NameRecord } from './sfnt';
 import { strokeOutline } from './stroke';
 import type { GlyphVariant, HandwritingFont } from './types';
 import { drawnVariants } from './variants';
@@ -113,46 +114,101 @@ function notdefGlyph(m: HandwritingFont['metrics']): Glyph {
   return new Glyph({ name: '.notdef', unicode: 0, advanceWidth: w, path: p });
 }
 
-/** PostScript-имя: только ASCII без пробелов, не длиннее 63 символов. */
-export function postScriptName(name: string): string {
-  const base = slug(name)
+/** ASCII-имя для Mac-записей и строк CFF: кириллица там не кодируется. */
+export function asciiName(name: string): string {
+  const words = slug(name)
     .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join('');
-  return `${base}-Regular`.slice(0, 63);
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  return words.join(' ');
 }
 
-/** Собирает OTF (CFF) из первого нарисованного варианта каждой буквы. */
-export function buildOtf(userFont: HandwritingFont, penSize = OTF_DEFAULT_PEN): Font {
+/** PostScript-имя: только ASCII без пробелов, не длиннее 63 символов. */
+export function postScriptName(name: string): string {
+  return `${asciiName(name).replace(/ /g, '')}-Regular`.slice(0, 63);
+}
+
+/** Имя семейства: Windows (LOGFONT) принимает не больше 31 символа. */
+export function familyName(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  return (trimmed.length > 31 ? trimmed.slice(0, 31).trimEnd() : trimmed) || 'Handwriting';
+}
+
+export function nameRecords(name: string, version = 'Version 1.000'): NameRecord[] {
+  const family = familyName(name);
+  const ascii = familyName(asciiName(name));
+  const ps = postScriptName(name);
+  const entries = (fam: string): [number, string][] => [
+    [1, fam],
+    [2, 'Regular'],
+    [3, `${version.replace('Version ', '')};HWG;${ps}`],
+    [4, `${fam} Regular`],
+    [5, version],
+    [6, ps],
+  ];
+  return [
+    ...entries(ascii).map(([nameID, text]) => ({ platformID: 1 as const, encodingID: 0, languageID: 0, nameID, text })),
+    ...entries(family).map(([nameID, text]) => ({ platformID: 3 as const, encodingID: 1, languageID: 0x409, nameID, text })),
+  ];
+}
+
+type Built = { font: Font; bbox: { xMin: number; yMin: number; xMax: number; yMax: number } };
+
+function build(userFont: HandwritingFont, penSize: number): Built {
   const m = userFont.metrics;
   const glyphs: Glyph[] = [];
+  const bbox = { xMin: 0, yMin: m.descender, xMax: 0, yMax: m.ascender };
   const chars = new Set([...charsOfAll(userFont.charsets), ...Object.keys(userFont.glyphs)]);
   for (const char of chars) {
     const variant = drawnVariants(userFont.glyphs[char])[0];
     if (!variant) continue;
+    const polys = variantPolygons(variant, penSize);
+    for (const poly of polys)
+      for (const ring of poly)
+        for (const [x, y] of ring) {
+          bbox.xMin = Math.min(bbox.xMin, x);
+          bbox.xMax = Math.max(bbox.xMax, x);
+          bbox.yMin = Math.min(bbox.yMin, y);
+          bbox.yMax = Math.max(bbox.yMax, y);
+        }
     glyphs.push(
       new Glyph({
         name: glyphName(char),
         unicode: char.codePointAt(0)!,
         advanceWidth: Math.round(variant.advanceWidth),
-        path: polygonsToPath(variantPolygons(variant, penSize)),
+        path: polygonsToPath(polys),
       }),
     );
   }
   const space = new Glyph({ name: 'space', unicode: 32, advanceWidth: SPACE_WIDTH, path: new Path() });
-  return new Font({
-    familyName: userFont.name,
+  const nbsp = new Glyph({ name: 'uni00A0', unicode: 0xa0, advanceWidth: SPACE_WIDTH, path: new Path() });
+  const ascii = familyName(asciiName(userFont.name));
+  const font = new Font({
+    // В строки CFF opentype.js пишет английское имя побайтно, поэтому туда идёт ASCII; настоящее имя — в таблице name.
+    familyName: ascii,
     styleName: 'Regular',
     postScriptName: postScriptName(userFont.name),
-    designer: 'Handwriting generator',
-    version: 'Version 1.0',
+    version: 'Version 1.000',
     unitsPerEm: 1000,
     ascender: Math.round(m.ascender),
     descender: Math.round(m.descender),
-    glyphs: [notdefGlyph(m), space, ...glyphs],
+    glyphs: [notdefGlyph(m), space, nbsp, ...glyphs],
   });
+  return { font, bbox };
+}
+
+/** Собирает OTF (CFF) из первого нарисованного варианта каждой буквы. */
+export function buildOtf(userFont: HandwritingFont, penSize = OTF_DEFAULT_PEN): Font {
+  return build(userFont, penSize).font;
 }
 
 export function otfBytes(userFont: HandwritingFont, penSize = OTF_DEFAULT_PEN): ArrayBuffer {
-  return buildOtf(userFont, penSize).toArrayBuffer();
+  const { font, bbox } = build(userFont, penSize);
+  const m = userFont.metrics;
+  return finalizeSfnt(font.toArrayBuffer(), {
+    names: nameRecords(userFont.name),
+    bbox,
+    ascender: m.ascender,
+    descender: m.descender,
+    weightClass: 400,
+  });
 }
