@@ -7,7 +7,7 @@ import { INK_PRESETS, type PageFormat, type PaperKind } from '../../core/types';
 import { useT } from '../../locales/i18n';
 import { useDebounced } from '../../ui/useDebounced';
 import { useMedia } from '../../ui/useMedia';
-import { glyphPath } from '../alphabet/AlphabetPage';
+import { glyphPath } from '../../app/routes';
 import { downloadBlob } from '../export/download';
 import { useFont } from '../fonts/useFont';
 import { PagePreview } from './PagePreview';

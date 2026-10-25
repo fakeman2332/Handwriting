@@ -9,7 +9,7 @@ import type { Glyph, GlyphVariant, HandwritingFont, InputType, Stroke } from '..
 import { drawnVariants, GENERATED_PER_DRAWN, generatedStub, stubsFor } from '../../core/variants';
 import { useT } from '../../locales/i18n';
 import { GlyphThumb } from '../../ui/GlyphThumb';
-import { glyphPath } from '../alphabet/AlphabetPage';
+import { glyphPath } from '../../app/routes';
 import { useFont } from '../fonts/useFont';
 import { GlyphCanvas } from './GlyphCanvas';
 

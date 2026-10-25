@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { glyphPath } from '../../app/routes';
 import { useConverter, useFonts, usePrefs } from '../../app/store';
 import { CHARSET_IDS, charsOf } from '../../core/charsets';
 import { fontProgress, nextUnfilled } from '../../core/font';
@@ -12,8 +13,6 @@ import { downloadBackup } from '../export/backup';
 import { CharsetPicker } from '../fonts/CreateFontPage';
 import { useFont } from '../fonts/useFont';
 
-export const glyphPath = (fontId: string, char: string, query = '') =>
-  `/font/${fontId}/glyph/${encodeURIComponent(char)}${query}`;
 
 /** Показывать заметную кнопку резервной копии после первых 20 букв. */
 const BACKUP_HINT_AFTER = 20;
