@@ -1,52 +1,59 @@
-# Handwriting generator
+# Handwriting
 
-Открыть приложение: https://fakeman2332.github.io/handwriting/
+**English** · [Русский](README.RU.md)
 
-Нарисуйте свой почерк по буквам — и превращайте любой текст в рукописный лист PNG, векторный PDF или шрифт OTF. Почерк печатный: буквы стоят раздельно.
+Draw your handwriting letter by letter and turn any text into a handwritten page, a PDF or an installable font.
 
-Приложение полностью клиентское: бэкенда и аккаунтов нет, почерки хранятся в IndexedDB браузера, резервная копия — файл `.hwfont.json`. Работает офлайн и устанавливается как PWA. Лицензия MIT.
+**Open the app:** https://fakeman2332.github.io/handwriting/
 
-## Возможности
+## How it works
 
-- Редактор буквы на трёх слоях canvas: направляющие и образец Inter, сохранённые штрихи, текущий штрих. Pointer Events, давление и наклон стилуса, защита от ладони, эмуляция давления по скорости для мыши и пальца, undo/redo, сдвиг и масштаб буквы, автосохранение после каждого штриха.
-- Наборы символов: латиница (52), кириллица (66, включая Ё/ё и Й/й), цифры (10), расширенная пунктуация.
-- Из каждого нарисованного варианта автоматически получаются три сгенерированных (аффинный сдвиг, низкочастотный simplex-шум, множитель давления). Хранятся только seed и ссылка на исходник.
-- Раскладка — чистая функция `layout(text, font, settings, seed)`: перенос по словам, принудительный разрыв длинных слов, плавающая базовая линия, вариативность поворота, масштаба и интервалов. Одинаковый seed — одинаковый результат, поэтому экспорт совпадает с превью. Длинные тексты считаются в Web Worker.
-- Бумага чистая, в линейку и в клетку; A4 и A5; многостраничность; анимация написания.
-- Экспорт: PNG 300 dpi (несколько страниц — zip), векторный PDF, печать, OTF (первый нарисованный вариант каждой буквы, контуры штрихов объединены через polygon-clipping).
+1. **Create a handwriting.** Give it a name and pick the character sets you need: Latin, Cyrillic, digits and punctuation.
+2. **Draw the letters.** A faint sample letter and guide lines help you keep the size consistent. Press "Next" to jump straight to the next empty letter. Every stroke is saved automatically.
+3. **Write your text.** Open the converter, type or paste text, and it appears on a sheet in your handwriting.
+4. **Export.** Download the result as PNG or PDF, print it, or save your handwriting as an OTF font.
 
-## Разработка
+You don't have to finish the whole alphabet first: the converter works from the very first letter. Letters you haven't drawn yet are highlighted on the sheet, and a click opens them for drawing. After you save, you return to the converter with your text intact.
 
-```sh
-npm ci
-npm run dev        # http://localhost:5173/
-npm test           # Vitest: ядро, хранилище, сборка OTF
-npm run typecheck
-npm run lint
-npm run build
-```
+## Features
 
-Метрики и контуры Inter извлекаются из того же woff2, что подключается в интерфейсе (`@fontsource-variable/inter`), скриптом `npm run extract:inter` в `src/core/inter-data.json`. Тест `inter-data.test.ts` сверяет файл со шрифтом. Иконки PWA пересобираются командой `NODE_PATH=$(npm root -g) npm run icons` (нужен Playwright).
+- **Natural variety.** Each drawn letter gets three automatic variations, so the same letter never looks identical twice in a row. You can delete any variation or add more of your own.
+- **Mouse, finger or stylus.** Stylus pressure and tilt are recorded, and accidental palm touches are ignored while you draw with a pen.
+- **Paper and ink.** Blank, lined or grid paper in A4 or A5. Blue, black or any ink colour you like, with adjustable pen width and text size.
+- **Regenerate.** One button gives the same text a fresh look. The exported file always matches the preview.
+- **Writing animation.** Watch your page being written stroke by stroke.
+- **Long texts.** Up to about 20 A4 pages, split into pages automatically.
+- **Two languages.** The interface is available in English and Russian.
 
-## Структура
+## Export formats
 
-```text
-src/
-  app/            роутинг, layout, сторы Zustand
-  core/           без React: наборы символов, метрики, варианты, раскладка, штрихи, OTF, формат копии
-  features/
-    fonts/        список шрифтов, создание, импорт
-    editor/       холст, ввод, undo/redo
-    alphabet/     сетка букв и прогресс
-    converter/    поле текста, превью, анимация, Web Worker раскладки
-    export/       png, pdf, otf, json
-  storage/        Dexie, репозиторий
-  ui/             общие компоненты и стили
-  locales/        ru.json, en.json, типизированная t()
-```
+| Format | What you get |
+| --- | --- |
+| PNG | 300 dpi images, one per page (a zip archive for several pages) |
+| PDF | A vector document that stays sharp at any zoom; also used for printing |
+| OTF | A font for Windows, macOS and Linux that works in Word, LibreOffice and graphics editors |
 
-Маршруты: `#/` — список шрифтов, `#/new` — создание, `#/font/:id` — сетка алфавита, `#/font/:id/glyph/:char` — редактор, `#/convert` — конвертер.
+The OTF font contains the first drawn version of each letter. A system font can't reproduce the variety of the generator, so identical letters look identical. Google Docs doesn't accept custom fonts.
 
-## Деплой
+## Your data stays with you
 
-GitHub Actions (`.github/workflows/deploy.yml`) на каждый push в `master` запускает проверку типов, линтер, тесты, проверку сгенерированного OTF через fontTools и публикует сборку на GitHub Pages. В настройках репозитория нужно выбрать Pages → Source: GitHub Actions. Сборка использует относительные пути (`base: './'`), поэтому работает из любой папки: на Pages, на своём сервере или локально, например `python3 -m http.server` в папке `dist`.
+There are no accounts and no servers: your handwritings are stored only in your browser on this device. To keep them safe or move them to another device, use **Backup** on the handwritings list. It saves a `.hwfont.json` file that you can restore later with **Import backup**.
+
+On iPhone and iPad, Safari may delete site data after 7 days without visits. Add the app to your Home Screen (Share → Add to Home Screen) and make backups regularly.
+
+## Install and work offline
+
+The app can be installed like a regular application from the browser menu ("Install app" or "Add to Home Screen"). Once opened, it keeps working without an internet connection. When a new version comes out, the app shows a notice and updates only when you choose to reload.
+
+## Limitations
+
+- Letters are printed separately: joined cursive handwriting isn't generated.
+- Exporting the writing animation as a video isn't supported yet.
+
+## Feedback and support
+
+Found a bug or have an idea? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+[MIT](LICENSE)
