@@ -4,7 +4,7 @@
 
 Draw your handwriting letter by letter and turn any text into a handwritten page, a PDF or an installable font.
 
-**Open the app:** https://fakeman2332.github.io/handwriting/
+**Open the app:** https://fakeman2332.github.io/Handwriting/
 
 ## How it works
 
